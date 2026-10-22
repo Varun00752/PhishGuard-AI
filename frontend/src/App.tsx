@@ -8,7 +8,12 @@ import {
   RefreshCw,
   FileText,
   Activity,
-  CheckCircle2
+  CheckCircle2,
+  UploadCloud,
+  FileUp,
+  X,
+  HelpCircle,
+  Info
 } from 'lucide-react'
 
 interface Indicator {
@@ -48,8 +53,10 @@ interface AnalysisResult {
 
 interface SampleEmail {
   id: string
-  name: string
-  description: string
+  label?: string
+  name?: string
+  type?: string
+  description?: string
   sender: string
   subject: string
   body: string
@@ -65,6 +72,10 @@ export default function App() {
   const [result, setResult] = useState<AnalysisResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [backendStatus, setBackendStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking')
+  const [isDragging, setIsDragging] = useState(false)
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null)
+  const [uploadLoading, setUploadLoading] = useState(false)
+  const [showGmailHelp, setShowGmailHelp] = useState(false)
 
   useEffect(() => {
     // Check backend health
@@ -82,6 +93,7 @@ export default function App() {
 
   const handleSampleChange = (sampleId: string) => {
     setSelectedSample(sampleId)
+    setUploadedFileName(null)
     const found = samples.find((s) => s.id === sampleId)
     if (found) {
       setSender(found.sender)
@@ -90,6 +102,84 @@ export default function App() {
       setResult(null)
       setError(null)
     }
+  }
+
+  const handleFileUpload = async (file: File) => {
+    if (!file) return
+    setUploadLoading(true)
+    setError(null)
+    setUploadedFileName(file.name)
+    setSelectedSample('')
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const response = await fetch('/api/upload-email', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}))
+        throw new Error(errData.detail || 'Failed to parse uploaded email file.')
+      }
+
+      const data = await response.json()
+      setSender(data.sender || '')
+      setSubject(data.subject || '')
+      setBody(data.body || '')
+      setResult(null)
+    } catch (err: any) {
+      // Client-side fallback: read as text if server upload fails
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const text = (e.target?.result as string) || ''
+        const fromMatch = text.match(/^From:\s*(.+)$/im)
+        const subjectMatch = text.match(/^Subject:\s*(.+)$/im)
+        if (fromMatch) setSender(fromMatch[1].trim())
+        if (subjectMatch) setSubject(subjectMatch[1].trim())
+        const parts = text.split(/\r?\n\r?\n/)
+        if (parts.length > 1) {
+          setBody(parts.slice(1).join('\n\n').trim())
+        } else {
+          setBody(text)
+        }
+        setResult(null)
+      }
+      reader.onerror = () => {
+        setError(err.message || 'Error processing email file.')
+      }
+      reader.readAsText(file)
+    } finally {
+      setUploadLoading(false)
+    }
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFileUpload(e.dataTransfer.files[0])
+    }
+  }
+
+  const handleClearFile = () => {
+    setUploadedFileName(null)
+    setSender('')
+    setSubject('')
+    setBody('')
+    setResult(null)
   }
 
   const handleAnalyze = async (e: React.FormEvent) => {
@@ -204,10 +294,123 @@ export default function App() {
                     <option value="">Load Sample Email...</option>
                     {samples.map((s) => (
                       <option key={s.id} value={s.id}>
-                        {s.name}
+                        {s.label || s.name || s.id}
                       </option>
                     ))}
                   </select>
+                </div>
+              )}
+            </div>
+
+            {/* Drag & Drop Upload Zone */}
+            <div
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className={`mb-5 relative border-2 border-dashed rounded-xl p-4 transition-all duration-200 text-center ${
+                isDragging
+                  ? 'border-indigo-500 bg-indigo-500/10 scale-[1.01]'
+                  : uploadedFileName
+                  ? 'border-emerald-500/40 bg-emerald-500/5'
+                  : 'border-slate-700/80 hover:border-slate-600 bg-slate-950/40'
+              }`}
+            >
+              <input
+                type="file"
+                id="email-file-input"
+                accept=".eml,.txt"
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files.length > 0) {
+                    handleFileUpload(e.target.files[0])
+                  }
+                }}
+              />
+
+              {uploadedFileName ? (
+                <div className="flex items-center justify-between gap-3 text-left">
+                  <div className="flex items-center gap-3 overflow-hidden">
+                    <div className="p-2 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg shrink-0">
+                      <FileUp className="w-5 h-5" />
+                    </div>
+                    <div className="truncate">
+                      <p className="text-xs font-semibold text-slate-200 truncate">
+                        {uploadedFileName}
+                      </p>
+                      <p className="text-[11px] text-emerald-400 flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" />
+                        Email parsed & loaded into form
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <label
+                      htmlFor="email-file-input"
+                      className="cursor-pointer text-xs font-medium text-slate-400 hover:text-white px-2.5 py-1 bg-slate-800 hover:bg-slate-700 rounded-md transition"
+                    >
+                      Change
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleClearFile}
+                      className="text-slate-400 hover:text-rose-400 p-1 rounded-md hover:bg-rose-500/10 transition"
+                      title="Clear file"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <label
+                  htmlFor="email-file-input"
+                  className="cursor-pointer flex flex-col items-center justify-center gap-2 py-2"
+                >
+                  <div className={`p-2.5 rounded-xl border transition ${
+                    isDragging
+                      ? 'bg-indigo-600 text-white border-indigo-400'
+                      : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
+                  }`}>
+                    {uploadLoading ? (
+                      <RefreshCw className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <UploadCloud className="w-5 h-5" />
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-slate-200">
+                      {isDragging ? 'Drop your email file here' : 'Drop Gmail .eml or .txt here, or click to browse'}
+                    </p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Supports raw RFC-822 / .eml downloaded directly from Gmail
+                    </p>
+                  </div>
+                </label>
+              )}
+
+              {/* Gmail Guide Collapsible Trigger */}
+              <div className="mt-2 pt-2 border-t border-slate-800/80 flex items-center justify-center">
+                <button
+                  type="button"
+                  onClick={() => setShowGmailHelp((prev) => !prev)}
+                  className="text-[11px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition"
+                >
+                  <HelpCircle className="w-3 h-3" />
+                  {showGmailHelp ? 'Hide Gmail download instructions' : 'How to download email from Gmail?'}
+                </button>
+              </div>
+
+              {showGmailHelp && (
+                <div className="mt-2.5 p-3 rounded-lg bg-slate-950/70 border border-slate-800 text-left text-[11px] text-slate-300 space-y-1.5">
+                  <p className="font-semibold text-indigo-300 flex items-center gap-1.5">
+                    <Info className="w-3.5 h-3.5" />
+                    Quick Steps in Gmail:
+                  </p>
+                  <ol className="list-decimal list-inside space-y-1 text-slate-400 pl-1">
+                    <li>Open the target email in <strong className="text-slate-200">Gmail</strong>.</li>
+                    <li>Click the <strong className="text-slate-200">More (⋮)</strong> menu near the top right of the message (next to the reply icon).</li>
+                    <li>Select <strong className="text-slate-200">"Download message"</strong> — this saves the email as a <code className="text-indigo-300 bg-slate-900 px-1 py-0.5 rounded">.eml</code> file.</li>
+                    <li>Drag and drop that downloaded <code className="text-indigo-300 bg-slate-900 px-1 py-0.5 rounded">.eml</code> file right here!</li>
+                  </ol>
                 </div>
               )}
             </div>

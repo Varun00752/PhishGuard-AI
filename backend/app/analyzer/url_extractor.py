@@ -37,9 +37,32 @@ SENSITIVE_PATH_KEYWORDS = [
     "confirm", "wallet", "invoice", "payment"
 ]
 
+# Reputable transactional email delivery infrastructure where deep subdomains/tracking are standard
+LEGIT_INFRASTRUCTURE_DOMAINS = {
+    "awstrack.me", "sendgrid.net", "mailgun.org", "mailgun.net",
+    "mandrillapp.com", "sparkpostmail.com", "postmarkapp.com",
+    "constantcontact.com", "hubspotlinks.com", "customeriomail.com"
+}
+
 IP_V4_PATTERN = re.compile(
     r'^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$'
 )
+
+
+def unwrap_tracking_url(url: str) -> str:
+    """
+    Unwraps the real target destination from known email click-tracking redirects
+    such as AWS SES (*.awstrack.me).
+    """
+    if not url:
+        return ""
+    if "awstrack.me" in url:
+        m = re.search(r'/(?:[A-Za-z0-9]+)/((?:https?|http):%2F%2F[^ \t\r\n\x22\x27)]+)', url, re.IGNORECASE)
+        if m:
+            unquoted = urllib.parse.unquote(m.group(1))
+            cleaned = re.sub(r'/[0-9]/[0-9a-fA-F\-]{8,}/.*$', '', unquoted)
+            return cleaned
+    return url
 
 
 def extract_and_analyze_urls(text: str) -> List[ExtractedURL]:
@@ -57,7 +80,10 @@ def extract_and_analyze_urls(text: str) -> List[ExtractedURL]:
     for match in raw_matches:
         # Strip trailing punctuation often caught by regex in sentences
         cleaned = match.rstrip(".,;:!?'\")>]}")
-        if not cleaned or cleaned in seen:
+        if not cleaned:
+            continue
+        cleaned = unwrap_tracking_url(cleaned)
+        if cleaned in seen:
             continue
         seen.add(cleaned)
 
@@ -117,7 +143,8 @@ def extract_and_analyze_urls(text: str) -> List[ExtractedURL]:
 
         # 8. Check for excessive subdomains (e.g. login.secure.verify.evil.com)
         parts = domain.split(".")
-        if len(parts) > 4 and not IP_V4_PATTERN.match(domain):
+        is_legit_infra = any(domain == leg or domain.endswith(f".{leg}") for leg in LEGIT_INFRASTRUCTURE_DOMAINS)
+        if len(parts) > 4 and not IP_V4_PATTERN.match(domain) and not is_legit_infra:
             flags.append("Excessive Subdomains (Obfuscation Tactic)")
 
         # 9. Brand lookalikes / typosquatting in domain
@@ -135,7 +162,7 @@ def extract_and_analyze_urls(text: str) -> List[ExtractedURL]:
 
         # 10. Sensitive authentication keyword in path of non-standard domain
         if any(keyword in path for keyword in SENSITIVE_PATH_KEYWORDS):
-            if matched_brand or tld in SUSPICIOUS_TLDS or IP_V4_PATTERN.match(domain) or len(parts) > 3:
+            if matched_brand or tld in SUSPICIOUS_TLDS or IP_V4_PATTERN.match(domain) or (len(parts) > 3 and not is_legit_infra):
                 flags.append("Credential/Verification Path on Suspicious Host")
 
         # Determine risk level

@@ -4,6 +4,7 @@ SAMPLE_EMAILS: List[Dict[str, str]] = [
     {
         "id": "phishing_m365",
         "label": "Microsoft 365 Account Suspension (Phishing)",
+        "name": "Microsoft 365 Account Suspension (Phishing)",
         "type": "phishing",
         "sender": "Microsoft 365 Security Alert <no-reply@security-center-update92.xyz>",
         "subject": "CRITICAL ALERT: Your Microsoft 365 Account Will Be Suspended Within 24 Hours",
@@ -21,6 +22,7 @@ SAMPLE_EMAILS: List[Dict[str, str]] = [
     {
         "id": "phishing_bec",
         "label": "CEO Urgent Wire / Gift Cards (Executive BEC)",
+        "name": "CEO Urgent Wire / Gift Cards (Executive BEC)",
         "type": "phishing",
         "sender": "Robert Vance - CEO <robert.vance.exec@gmail.com>",
         "subject": "Urgent Request - Wire Transfer / Gift Cards (In Meeting)",
@@ -37,6 +39,7 @@ SAMPLE_EMAILS: List[Dict[str, str]] = [
     {
         "id": "suspicious_invoice",
         "label": "Overdue Invoice with Shortener (Suspicious)",
+        "name": "Overdue Invoice with Shortener (Suspicious)",
         "type": "suspicious",
         "sender": "Accounts Receivable <billing@quickinvoicing-sys.top>",
         "subject": "OVERDUE INVOICE #INV-9042 - Immediate Payment Required",
@@ -53,6 +56,7 @@ SAMPLE_EMAILS: List[Dict[str, str]] = [
     {
         "id": "benign_team_sync",
         "label": "Internal Team Sync & Agenda (Benign)",
+        "name": "Internal Team Sync & Agenda (Benign)",
         "type": "benign",
         "sender": "Sarah Jenkins <sjenkins@acmecorp.com>",
         "subject": "Team Weekly Sync - Agenda & Q3 Project Updates",
@@ -74,6 +78,7 @@ SAMPLE_EMAILS: List[Dict[str, str]] = [
     {
         "id": "benign_newsletter",
         "label": "Security Community Newsletter (Benign)",
+        "name": "Security Community Newsletter (Benign)",
         "type": "benign",
         "sender": "Cybersecurity Weekly Digest <newsletter@cybersec-weekly.org>",
         "subject": "This Week in InfoSec: Zero-Day Roundups and Best Practices",

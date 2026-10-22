@@ -1,12 +1,15 @@
 import logging
 from typing import List, Dict, Any
-from fastapi import FastAPI, HTTPException, status
+from pathlib import Path
+from fastapi import FastAPI, HTTPException, status, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from .models import EmailAnalyzeRequest, AnalysisResult, HealthResponse
 from .analyzer.engine import analyzer_engine
 from .samples import SAMPLE_EMAILS
+from .email_parser import parse_email_bytes
 
 # Configure logging
 logging.basicConfig(
@@ -55,6 +58,32 @@ async def get_sample_emails():
     return SAMPLE_EMAILS
 
 
+@app.post("/api/upload-email", tags=["Upload"])
+async def upload_email(file: UploadFile = File(...)):
+    """
+    Parses an uploaded .eml or raw text email message (e.g. exported from Gmail),
+    extracting sender, subject, and body for phishing analysis.
+    """
+    try:
+        content = await file.read()
+        if not content:
+            raise HTTPException(
+                status_code=422,
+                detail="The uploaded email file is empty."
+            )
+        parsed = parse_email_bytes(content)
+        parsed["filename"] = file.filename or "uploaded_email.eml"
+        return parsed
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error(f"Error parsing uploaded email file: {exc}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to parse the uploaded email file. Please ensure it is a valid .eml or .txt file."
+        )
+
+
 @app.post(
     "/api/analyze",
     response_model=AnalysisResult,
@@ -94,8 +123,38 @@ async def analyze_email(payload: EmailAnalyzeRequest):
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request, exc):
+    if isinstance(exc, HTTPException):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"detail": exc.detail}
+        )
     logger.error(f"Global unhandled exception: {exc}")
     return JSONResponse(
         status_code=500,
         content={"detail": "Internal server error occurred."}
     )
+
+
+# Serve built frontend single-page application (SPA)
+FRONTEND_DIST = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
+
+if FRONTEND_DIST.exists():
+    assets_path = FRONTEND_DIST / "assets"
+    if assets_path.exists():
+        app.mount("/assets", StaticFiles(directory=str(assets_path)), name="assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        # Do not catch unhandled API or documentation routes
+        if full_path.startswith("api/") or full_path in ("docs", "redoc", "openapi.json"):
+            raise HTTPException(status_code=404, detail="Endpoint not found")
+
+        target_file = FRONTEND_DIST / full_path
+        if full_path and target_file.is_file():
+            return FileResponse(target_file)
+
+        index_file = FRONTEND_DIST / "index.html"
+        if index_file.is_file():
+            return FileResponse(index_file)
+
+        raise HTTPException(status_code=404, detail="Frontend build index.html not found.")
