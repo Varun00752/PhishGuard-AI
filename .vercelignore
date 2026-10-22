@@ -1,0 +1,10 @@
+.pytest_cache
+__pycache__
+*.pyc
+.git
+.github
+*.pptx
+make_ppt.py
+build_phishguard_ppt.py
+backend/.pytest_cache
+backend/tests

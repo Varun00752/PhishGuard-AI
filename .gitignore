@@ -16,7 +16,12 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Environment & IDE
+# Presentations & Scripts
+*.pptx
+~$*.pptx
+make_ppt.py
+build_phishguard_ppt.py
+.agents/
 .env
 .env.local
 .vscode/
