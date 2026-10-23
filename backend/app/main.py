@@ -19,7 +19,7 @@ logging.basicConfig(
 logger = logging.getLogger("phishguard.api")
 
 app = FastAPI(
-    title="PhishGuard AI — Phishing Email Analyzer API",
+    title="Phishguard — Phishing Email Analyzer API",
     description="Explainable, rule-based phishing risk assessment engine and URL inspector.",
     version="1.0.0",
     docs_url="/docs",
@@ -44,11 +44,11 @@ app.add_middleware(
 
 @app.get("/api/health", response_model=HealthResponse, tags=["System"])
 async def health_check():
-    """Returns the operational status of the PhishGuard AI service."""
+    """Returns the operational status of the Phishguard service."""
     return HealthResponse(
         status="healthy",
         version="1.0.0",
-        service="phishguard-ai-backend"
+        service="phishguard-backend"
     )
 
 

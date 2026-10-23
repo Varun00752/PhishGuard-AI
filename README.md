@@ -1,6 +1,6 @@
-# PhishGuard AI 🛡️ — Phishing Email Analyzer & Risk Engine
+# Phishguard 🛡️ — Phishing Email Analyzer & Risk Engine
 
-**PhishGuard AI** is an explainable, rule-based phishing risk assessment engine and URL inspector with an interactive modern web interface.
+**Phishguard** is an explainable, rule-based phishing risk assessment engine and URL inspector with an interactive modern web interface.
 
 ---
 

@@ -304,7 +304,7 @@ export default function App() {
             </div>
             <div>
               <h1 className="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
-                PhishGuard AI
+                Phishguard
                 <span className="text-[11px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-500/20 dark:text-indigo-300 dark:border-indigo-500/30 font-semibold">
                   v1.0.0
                 </span>
